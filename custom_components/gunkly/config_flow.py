@@ -121,6 +121,7 @@ class GunklyConfigFlow(ConfigFlow, domain=DOMAIN):
                 ),
                 user_input,
             ),
+            description_placeholders={"example_url": "https://gunkly.example.com"},
             errors=errors,
         )
 

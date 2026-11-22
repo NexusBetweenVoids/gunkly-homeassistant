@@ -9,7 +9,7 @@
           "token": "API token"
         },
         "data_description": {
-          "url": "Address of your Gunkly server, for example https://gunkly.example.com",
+          "url": "Address of your Gunkly server, for example {example_url}",
           "token": "The token starts with gk_"
         }
       },
