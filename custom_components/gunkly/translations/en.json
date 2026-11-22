@@ -88,7 +88,7 @@
       "message": "The API token does not allow this action: {error}"
     },
     "missing_scope": {
-      "message": "The API token does not have the chores:complete scope."
+      "message": "The API token does not have the chores:complete scope, or your role in this household is guest."
     },
     "unknown_item": {
       "message": "The to-do item has no chore id."

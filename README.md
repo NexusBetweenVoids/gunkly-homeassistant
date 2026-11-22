@@ -71,8 +71,8 @@ All actions target the household's to-do entity (or its device or area) and take
 | Action | Fields | Needs |
 | --- | --- | --- |
 | `gunkly.complete_chore` | `chore`, optional `note` | `chores:complete` |
-| `gunkly.snooze_chore` | `chore`, `until` (date, today or later) | server permission |
-| `gunkly.skip_chore` | `chore` | server permission |
+| `gunkly.snooze_chore` | `chore`, `until` (date, today or later) | `chores:complete` |
+| `gunkly.skip_chore` | `chore` | `chores:complete` |
 
 ## Events
 

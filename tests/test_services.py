@@ -78,3 +78,26 @@ async def test_unknown_chore_error(hass: HomeAssistant, setup, mock_api) -> None
         await hass.services.async_call(
             DOMAIN, "skip_chore", {"entity_id": ENTITY, "chore": "nope"}, blocking=True
         )
+
+
+@pytest.mark.parametrize("service", ["snooze_chore", "skip_chore"])
+async def test_snooze_skip_need_scope(hass: HomeAssistant, setup, mock_api, service) -> None:
+    """Snooze and skip need chores:complete like complete does."""
+    set_scopes(mock_api, ["chores:read", "chores:write"])
+    await setup()
+    data = {"entity_id": ENTITY, "chore": "c1"}
+    if service == "snooze_chore":
+        data["until"] = "2026-12-01"
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, service, data, blocking=True)
+    assert not _posts(mock_api)
+
+
+async def test_guest_household_refuses_actions(hass: HomeAssistant, setup, mock_api) -> None:
+    """A guest role refuses actions locally even with all scopes."""
+    await setup()
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "skip_chore", {"entity_id": "todo.cabin_chores", "chore": "c1"}, blocking=True
+        )
+    assert not _posts(mock_api)

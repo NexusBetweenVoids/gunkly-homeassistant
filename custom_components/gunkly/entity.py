@@ -10,7 +10,7 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import Chore, GunklyApiError, GunklyError, HouseholdRef
-from .const import CONF_URL, DOMAIN, SCOPE_COMPLETE
+from .const import CONF_URL, DOMAIN, ROLE_GUEST, SCOPE_COMPLETE
 from .coordinator import GunklyCoordinator
 
 
@@ -62,6 +62,11 @@ class GunklyEntity(CoordinatorEntity[GunklyCoordinator]):
         chore = self.coordinator.find_chore(self.household.id, ref)
         return chore.id if chore else ref
 
+    def _require_complete(self) -> None:
+        """Refuse locally when the token cannot complete chores in this household."""
+        if SCOPE_COMPLETE not in self.coordinator.token.scopes or self.household.role == ROLE_GUEST:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="missing_scope")
+
     async def async_complete_chore(self, chore: str, note: str | None = None) -> None:
         """Complete a chore (entity service)."""
         if SCOPE_COMPLETE not in self.coordinator.token.scopes:
@@ -72,12 +77,14 @@ class GunklyEntity(CoordinatorEntity[GunklyCoordinator]):
 
     async def async_snooze_chore(self, chore: str, until: date) -> None:
         """Snooze a chore (entity service)."""
+        self._require_complete()
         await self.api_call(
             self.coordinator.client.snooze_chore(self.household.id, self.chore_id(chore), until)
         )
 
     async def async_skip_chore(self, chore: str) -> None:
         """Skip a chore occurrence (entity service)."""
+        self._require_complete()
         await self.api_call(
             self.coordinator.client.skip_chore(self.household.id, self.chore_id(chore))
         )
