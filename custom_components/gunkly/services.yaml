@@ -1,0 +1,42 @@
+complete_chore:
+  target:
+    entity:
+      integration: gunkly
+      domain: todo
+  fields:
+    chore:
+      required: true
+      example: "Vacuum the stairs"
+      selector:
+        text:
+    note:
+      required: false
+      example: "Used the new filter"
+      selector:
+        text:
+snooze_chore:
+  target:
+    entity:
+      integration: gunkly
+      domain: todo
+  fields:
+    chore:
+      required: true
+      example: "Vacuum the stairs"
+      selector:
+        text:
+    until:
+      required: true
+      selector:
+        date:
+skip_chore:
+  target:
+    entity:
+      integration: gunkly
+      domain: todo
+  fields:
+    chore:
+      required: true
+      example: "Vacuum the stairs"
+      selector:
+        text:

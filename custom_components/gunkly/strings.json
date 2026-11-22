@@ -1,0 +1,137 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Gunkly",
+        "description": "Create an API token in Gunkly under Account, Integrations, then enter your server address and the token.",
+        "data": {
+          "url": "URL",
+          "token": "API token"
+        },
+        "data_description": {
+          "url": "Address of your Gunkly server, for example https://gunkly.example.com",
+          "token": "The token starts with gk_"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Gunkly",
+        "description": "The API token for {url} was rejected. Create a new token in Gunkly under Account, Integrations and enter it here.",
+        "data": {
+          "token": "API token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Gunkly",
+      "invalid_auth": "The API token was rejected",
+      "invalid_url": "Enter a valid http:// or https:// address.",
+      "missing_scope": "The token needs at least the chores:read scope.",
+      "no_households": "The token is not bound to any household."
+    },
+    "abort": {
+      "already_configured": "This token is already configured",
+      "reauth_successful": "Reauthentication was successful"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gunkly options",
+        "data": {
+          "poll_interval": "Update interval (seconds)",
+          "show_later": "Also list chores that are due later"
+        },
+        "data_description": {
+          "poll_interval": "How often Gunkly is polled. Between 30 and 3600 seconds.",
+          "show_later": "By default the to-do list shows overdue chores and chores due up to this week."
+        }
+      }
+    }
+  },
+  "entity": {
+    "todo": {
+      "chores": {
+        "name": "Chores"
+      }
+    },
+    "calendar": {
+      "chores": {
+        "name": "Chores"
+      }
+    },
+    "sensor": {
+      "overdue": {
+        "name": "Overdue chores"
+      },
+      "due_today": {
+        "name": "Chores due today"
+      },
+      "next_due": {
+        "name": "Next chore due"
+      }
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "The Gunkly API token was rejected."
+    },
+    "cannot_connect": {
+      "message": "Cannot reach Gunkly: {error}"
+    },
+    "rate_limited": {
+      "message": "Gunkly is rate limiting requests, retrying later."
+    },
+    "request_failed": {
+      "message": "Gunkly rejected the request: {error}"
+    },
+    "forbidden": {
+      "message": "The API token does not allow this action: {error}"
+    },
+    "missing_scope": {
+      "message": "The API token does not have the chores:complete scope."
+    },
+    "unknown_item": {
+      "message": "The to-do item has no chore id."
+    }
+  },
+  "services": {
+    "complete_chore": {
+      "name": "Complete chore",
+      "description": "Marks a chore as done.",
+      "fields": {
+        "chore": {
+          "name": "Chore",
+          "description": "Chore id or exact name."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Optional note stored with the completion."
+        }
+      }
+    },
+    "snooze_chore": {
+      "name": "Snooze chore",
+      "description": "Moves the current occurrence of a chore to a later date.",
+      "fields": {
+        "chore": {
+          "name": "Chore",
+          "description": "Chore id or exact name."
+        },
+        "until": {
+          "name": "Until",
+          "description": "Date the chore should be due, today or later."
+        }
+      }
+    },
+    "skip_chore": {
+      "name": "Skip chore",
+      "description": "Skips the current occurrence of a recurring chore.",
+      "fields": {
+        "chore": {
+          "name": "Chore",
+          "description": "Chore id or exact name."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+# Integration Quality Scale rules. Target: Bronze (all Bronze rules met),
+# with the Silver rules that are already satisfied marked done.
+rules:
+  # Bronze
+  action-setup: done  # services are registered in async_setup
+  appropriate-polling: done  # 60 s default, 30-3600 s option, 429 Retry-After honoured
+  brands:
+    status: done
+    comment: Images ship in custom_components/gunkly/brand (verified in HA 2026.10); also prepared for the brands repo.
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency:
+    status: done
+    comment: No requirements; only aiohttp through Home Assistant's shared session.
+  docs-actions: done
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup:
+    status: exempt
+    comment: Entities do not subscribe to events; they are CoordinatorEntity subclasses.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done  # DataUpdateCoordinator logs once on failure and once on recovery
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage: done  # about 96 percent
