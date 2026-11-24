@@ -51,7 +51,12 @@
   "entity": {
     "todo": {
       "chores": {
-        "name": "Chores"
+        "name": "Chores",
+        "state_attributes": {
+          "turn": {
+            "name": "Turn"
+          }
+        }
       }
     },
     "calendar": {
@@ -61,13 +66,40 @@
     },
     "sensor": {
       "overdue": {
-        "name": "Overdue chores"
+        "name": "Overdue chores",
+        "state_attributes": {
+          "chores": {
+            "name": "Chores"
+          },
+          "turns": {
+            "name": "Turns"
+          }
+        }
       },
       "due_today": {
-        "name": "Chores due today"
+        "name": "Chores due today",
+        "state_attributes": {
+          "chores": {
+            "name": "Chores"
+          },
+          "turns": {
+            "name": "Turns"
+          }
+        }
       },
       "next_due": {
-        "name": "Next chore due"
+        "name": "Next chore due",
+        "state_attributes": {
+          "chore_id": {
+            "name": "Chore ID"
+          },
+          "chore_name": {
+            "name": "Chore name"
+          },
+          "turn_name": {
+            "name": "Turn"
+          }
+        }
       }
     }
   },

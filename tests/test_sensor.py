@@ -11,13 +11,16 @@ async def test_sensor_values(hass: HomeAssistant, setup) -> None:
     overdue = hass.states.get("sensor.home_overdue_chores")
     assert overdue.state == "1"
     assert overdue.attributes["chores"] == ["Take out bins"]
+    assert overdue.attributes["turns"] == {"Take out bins": "Alex"}
     today = hass.states.get("sensor.home_chores_due_today")
     assert today.state == "1"
     assert today.attributes["chores"] == ["Water plants"]
+    assert today.attributes["turns"] == {}
     nxt = hass.states.get("sensor.home_next_chore_due")
     assert nxt.state == "2026-11-20"  # overdue counts; paused chores do not
     assert nxt.attributes["chore_name"] == "Take out bins"
     assert nxt.attributes["chore_id"] == "c1"
+    assert nxt.attributes["turn_name"] == "Alex"
 
 
 async def test_empty_household(hass: HomeAssistant, setup) -> None:

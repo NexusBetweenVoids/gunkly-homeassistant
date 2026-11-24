@@ -83,6 +83,7 @@ class Chore:
     link: str = ""
     kind: str = "recurring"
     assignees: tuple[str, ...] = field(default_factory=tuple)
+    turn_name: str | None = None  # whose turn it is (chores that take turns; Gunkly 0.5+)
 
     @property
     def active(self) -> bool:
@@ -142,6 +143,7 @@ def _parse_chore(raw: dict[str, Any]) -> Chore:
         link=str(raw.get("link") or ""),
         kind=str(raw.get("kind") or "recurring"),
         assignees=tuple(str(a) for a in raw.get("assignees") or ()),
+        turn_name=str(raw["turnName"]) if raw.get("turnName") else None,
     )
 
 

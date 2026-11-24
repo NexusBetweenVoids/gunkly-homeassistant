@@ -41,6 +41,7 @@ async def test_items(hass: HomeAssistant, setup) -> None:
     assert items[1]["uid"] == "c2"
     assert items[1]["due"] == "2026-11-22"
     assert items[1]["description"] == "Fern needs extra"
+    assert items[0]["description"] == "Turn: Alex"  # takes turns
     assert all(i["status"] == "needs_action" for i in items)
     assert hass.states.get(ENTITY).state == "3"
 

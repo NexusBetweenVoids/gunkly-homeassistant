@@ -32,7 +32,14 @@ class GunklySensorDescription(SensorEntityDescription):
 
 
 def _names(status: str) -> Callable[[list[Chore]], dict[str, Any]]:
-    return lambda chores: {"chores": [c.name for c in chores if c.status == status]}
+    def attrs(chores: list[Chore]) -> dict[str, Any]:
+        found = [c for c in chores if c.status == status]
+        return {
+            "chores": [c.name for c in found],
+            "turns": {c.name: c.turn_name for c in found if c.turn_name},
+        }
+
+    return attrs
 
 
 def _count(status: str) -> Callable[[list[Chore]], int]:
@@ -42,7 +49,11 @@ def _count(status: str) -> Callable[[list[Chore]], int]:
 def _next_attrs(chores: list[Chore]) -> dict[str, Any]:
     if (found := next_due(chores)) is None:
         return {}
-    return {"chore_id": found[0].id, "chore_name": found[0].name}
+    return {
+        "chore_id": found[0].id,
+        "chore_name": found[0].name,
+        "turn_name": found[0].turn_name,
+    }
 
 
 def _next_value(chores: list[Chore]) -> date | None:

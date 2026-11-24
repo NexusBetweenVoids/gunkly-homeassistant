@@ -13,9 +13,17 @@ from homeassistant.components.todo import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 
-from .api import STATUS_LATER, STATUS_OVERDUE, STATUS_THIS_WEEK, STATUS_TODAY, HouseholdRef
+from .api import (
+    STATUS_LATER,
+    STATUS_OVERDUE,
+    STATUS_THIS_WEEK,
+    STATUS_TODAY,
+    Chore,
+    HouseholdRef,
+)
 from .const import (
     CONF_SHOW_LATER,
     DEFAULT_SHOW_LATER,
@@ -28,6 +36,8 @@ from .coordinator import GunklyConfigEntry, GunklyCoordinator
 from .entity import GunklyEntity
 
 PARALLEL_UPDATES = 1
+
+TURN_KEY = f"component.{DOMAIN}.entity.todo.chores.state_attributes.turn.name"
 
 
 async def async_setup_entry(
@@ -55,6 +65,7 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
     ) -> None:
         """Initialise the list; features follow the token's scopes."""
         super().__init__(coordinator, household, "todo")
+        self._turn_label = "Turn"
         self._statuses = {STATUS_OVERDUE, STATUS_TODAY, STATUS_THIS_WEEK}
         if show_later:
             self._statuses.add(STATUS_LATER)
@@ -72,6 +83,23 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
             )
         self._attr_supported_features = features
 
+    async def async_added_to_hass(self) -> None:
+        """Load the translated "Turn" label for item descriptions."""
+        await super().async_added_to_hass()
+        strings = await async_get_translations(
+            self.hass, self.hass.config.language, "entity", {DOMAIN}
+        )
+        self._turn_label = strings.get(TURN_KEY, self._turn_label)
+
+    def _description(self, chore: Chore) -> str | None:
+        """Whose turn it is (if the chore takes turns), then the notes."""
+        parts = []
+        if chore.turn_name:
+            parts.append(f"{self._turn_label}: {chore.turn_name}")
+        if chore.notes:
+            parts.append(chore.notes)
+        return "\n\n".join(parts) or None
+
     @property
     def todo_items(self) -> list[TodoItem]:
         """Return the open items, earliest due first."""
@@ -83,7 +111,7 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
                 summary=c.name,
                 status=TodoItemStatus.NEEDS_ACTION,
                 due=c.due_date,
-                description=c.notes or None,
+                description=self._description(c),
             )
             for c in chores
         ]

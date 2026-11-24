@@ -52,7 +52,7 @@ def chore(cid: str, name: str, status: str, due: str | None, **extra: Any) -> di
 
 
 CHORES = [
-    chore("c1", "Take out bins", "overdue", "2026-11-20"),
+    chore("c1", "Take out bins", "overdue", "2026-11-20", turnName="Alex"),
     chore("c2", "Water plants", "today", "2026-11-22", notes="Fern needs extra"),
     chore("c3", "Clean oven", "thisWeek", "2026-11-25"),
     chore("c4", "Deep clean", "later", "2026-12-20"),

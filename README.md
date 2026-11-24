@@ -58,10 +58,10 @@ Delete the integration from **Settings, Devices & services**, then (optionally) 
 
 | Entity | Description |
 | --- | --- |
-| `todo.<household>_chores` | Overdue, today and this-week chores (plus later ones if enabled), earliest due first, with due date and notes. Checking an item completes the chore (needs `chores:complete`). Adding an item creates a one-off chore due that day, today by default (needs `chores:write`). Items cannot be deleted or reordered. Without the scopes the list is read-only. |
-| `sensor.<household>_overdue_chores` | Number of overdue chores; attribute `chores` lists their names. |
-| `sensor.<household>_chores_due_today` | Number of chores due today; attribute `chores` lists their names. |
-| `sensor.<household>_next_chore_due` | Date of the earliest due active chore (overdue chores count, paused ones do not); attributes `chore_id`, `chore_name`. |
+| `todo.<household>_chores` | Overdue, today and this-week chores (plus later ones if enabled), earliest due first, with due date and notes; for chores that take turns the description starts with whose turn it is (Gunkly 0.5 or newer). Checking an item completes the chore (needs `chores:complete`). Adding an item creates a one-off chore due that day, today by default (needs `chores:write`). Items cannot be deleted or reordered. Without the scopes the list is read-only. |
+| `sensor.<household>_overdue_chores` | Number of overdue chores; attribute `chores` lists their names, `turns` maps each chore that takes turns to whose turn it is. |
+| `sensor.<household>_chores_due_today` | Number of chores due today; attributes `chores` and `turns` as above. |
+| `sensor.<household>_next_chore_due` | Date of the earliest due active chore (overdue chores count, paused ones do not); attributes `chore_id`, `chore_name`, `turn_name` (whose turn it is, if the chore takes turns). |
 | `calendar.<household>_chores` | Chore occurrences as all-day events. Ranges longer than Gunkly's 62-day limit are fetched in several requests. |
 
 ## Actions
