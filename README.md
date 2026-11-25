@@ -29,7 +29,9 @@ Copy `custom_components/gunkly` from this repository into the `custom_components
 
 ## Create an API token in Gunkly
 
-1. In Gunkly open **Account, Integrations** and create a token (step-up verification is required).
+Gunkly 0.5.2 and newer: **Settings, Integrations, Home Assistant** walks you through all of this, with buttons that open your Home Assistant (via My Home Assistant) to install the integration from HACS and to add it, and **Create a key for Home Assistant**, which prefills the token below and shows the server address to paste. Older versions: open **Account, Integrations**.
+
+1. In Gunkly open **Settings, Integrations** and create a token (step-up verification is required).
 2. Pick the households the token may access.
 3. Recommended scopes:
    - `chores:read` (required): lists, sensors, calendar.
@@ -52,7 +54,7 @@ A token acts with its owner's role in each household, so a household where you a
 
 ### Removal
 
-Delete the integration from **Settings, Devices & services**, then (optionally) revoke the token in Gunkly under Account, Integrations. Nothing else is stored.
+Delete the integration from **Settings, Devices & services**, then (optionally) revoke the token in Gunkly under Settings, Integrations (Account, Integrations before 0.5.2). Nothing else is stored.
 
 ## Entities (per household)
 
