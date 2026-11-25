@@ -37,6 +37,9 @@ def _names(status: str) -> Callable[[list[Chore]], dict[str, Any]]:
         return {
             "chores": [c.name for c in found],
             "turns": {c.name: c.turn_name for c in found if c.turn_name},
+            "reminder_times": {
+                c.name: c.reminder_time.strftime("%H:%M") for c in found if c.reminder_time
+            },
         }
 
     return attrs
@@ -53,6 +56,9 @@ def _next_attrs(chores: list[Chore]) -> dict[str, Any]:
         "chore_id": found[0].id,
         "chore_name": found[0].name,
         "turn_name": found[0].turn_name,
+        "reminder_time": found[0].reminder_time.strftime("%H:%M")
+        if found[0].reminder_time
+        else None,
     }
 
 

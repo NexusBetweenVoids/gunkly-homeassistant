@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import pytest
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components.todo import (
@@ -12,6 +15,7 @@ from homeassistant.components.todo import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
@@ -39,7 +43,11 @@ async def test_items(hass: HomeAssistant, setup) -> None:
     items = await _items(hass)
     assert [i["summary"] for i in items] == ["Take out bins", "Water plants", "Clean oven"]
     assert items[1]["uid"] == "c2"
-    assert items[1]["due"] == "2026-11-22"
+    # A reminder time makes the due a moment (07:30 in the household's zone, Asia/Tokyo).
+    assert dt_util.parse_datetime(items[1]["due"]) == datetime(
+        2026, 11, 22, 7, 30, tzinfo=ZoneInfo("Asia/Tokyo")
+    )
+    assert items[0]["due"] == "2026-11-20"  # no reminder time: a date
     assert items[1]["description"] == "Fern needs extra"
     assert items[0]["description"] == "Turn: Alex"  # takes turns
     assert all(i["status"] == "needs_action" for i in items)

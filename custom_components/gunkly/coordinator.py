@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta, tzinfo
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import (
     STATUS_OVERDUE,
@@ -57,6 +58,8 @@ class GunklyCoordinator(DataUpdateCoordinator[GunklyData]):
         )
         self.client = client
         self.token = token
+        # Household time zones, fetched once when a chore first has a reminder time.
+        self.timezones: dict[str, tzinfo] = {}
 
     async def _async_update_data(self) -> GunklyData:
         previous = self.data
@@ -64,6 +67,10 @@ class GunklyCoordinator(DataUpdateCoordinator[GunklyData]):
         try:
             for household in self.token.households:
                 data[household.id] = await self.client.get_chores(household.id)
+                if household.id not in self.timezones and any(
+                    c.reminder_time for c in data[household.id]
+                ):
+                    self.timezones[household.id] = await self._zone(household.id)
         except GunklyAuthError as err:
             raise ConfigEntryAuthFailed(
                 translation_domain=DOMAIN, translation_key="auth_failed"
@@ -90,6 +97,19 @@ class GunklyCoordinator(DataUpdateCoordinator[GunklyData]):
         if previous is not None:
             self._fire_overdue_events(previous, data)
         return data
+
+    async def _zone(self, household_id: str) -> tzinfo:
+        """The household's time zone, or Home Assistant's when it is unknown."""
+        name = await self.client.get_household_timezone(household_id)
+        zone = await dt_util.async_get_time_zone(name) if name else None
+        return zone or dt_util.get_default_time_zone()
+
+    def at(self, household_id: str, day: date, when: time | None) -> date | datetime:
+        """A chore's day, at its reminder time when it has one (household zone)."""
+        if when is None:
+            return day
+        zone = self.timezones.get(household_id) or dt_util.get_default_time_zone()
+        return datetime.combine(day, when, tzinfo=zone)
 
     def _fire_overdue_events(self, previous: GunklyData, current: GunklyData) -> None:
         """Fire an event for each chore that became overdue since the last poll."""

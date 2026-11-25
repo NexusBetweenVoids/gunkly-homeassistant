@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -12,7 +13,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.gunkly.api import date_windows
 
-from .conftest import API
+from .conftest import API, CHORES, token_payload
 
 ENTITY = "calendar.home_chores"
 
@@ -76,3 +77,42 @@ async def test_get_events_error(hass: HomeAssistant, setup, mock_api: AiohttpCli
         await cal.async_get_events(
             hass, dt_util.as_utc(datetime(2026, 11, 1)), dt_util.as_utc(datetime(2026, 11, 8))
         )
+
+
+async def test_reminder_time_events(
+    hass: HomeAssistant, setup, mock_api: AiohttpClientMocker
+) -> None:
+    """Chores with a reminder time are short events at that time (household zone)."""
+    await setup()
+    mock_api.get(
+        f"{API}/households/hh1/calendar",
+        json={
+            "items": [
+                {"choreId": "c2", "name": "Water plants", "dates": ["2026-11-22"]},
+                {"choreId": "c3", "name": "Clean oven", "dates": ["2026-11-25"]},
+            ]
+        },
+    )
+    cal = hass.data["calendar"].get_entity(ENTITY)
+    start = dt_util.as_utc(datetime(2026, 11, 20))
+    events = await cal.async_get_events(hass, start, dt_util.as_utc(datetime(2026, 11, 30)))
+    timed, allday = events
+    tokyo = ZoneInfo("Asia/Tokyo")
+    assert timed.summary == "Water plants"
+    assert timed.start == datetime(2026, 11, 22, 7, 30, tzinfo=tokyo)
+    assert timed.end == datetime(2026, 11, 22, 8, 0, tzinfo=tokyo)
+    assert allday.start == date(2026, 11, 25)
+    assert allday.end == date(2026, 11, 26)
+
+
+async def test_no_reminder_times_no_household_request(
+    hass: HomeAssistant, setup, mock_api: AiohttpClientMocker
+) -> None:
+    """Without reminder times (older Gunkly) the household is never fetched."""
+    mock_api.clear_requests()
+    mock_api.get(f"{API}/token", json=token_payload())
+    mock_api.get(f"{API}/households/hh1/chores", json=[{**c, "reminderTime": None} for c in CHORES])
+    mock_api.get(f"{API}/households/hh2/chores", json=[])
+    await setup()
+    assert not [c for c in mock_api.mock_calls if str(c[1]).endswith("/households/hh1")]
+    assert hass.states.get(ENTITY).attributes["all_day"] is True

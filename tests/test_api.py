@@ -62,3 +62,16 @@ async def test_error_mapping(client: GunklyClient, aioclient_mock: AiohttpClient
     aioclient_mock.get(f"{API}/households/a/chores", text="<html>")
     with pytest.raises(GunklyConnectionError):
         await client.get_chores("a")
+
+
+def test_parse_reminder_time() -> None:
+    """reminderTime becomes a time; missing or malformed values are None."""
+    from datetime import time
+
+    from custom_components.gunkly.api import _parse_chore
+
+    base = {"id": "c", "name": "n", "status": "today"}
+    assert _parse_chore({**base, "reminderTime": "07:30"}).reminder_time == time(7, 30)
+    assert _parse_chore(base).reminder_time is None
+    assert _parse_chore({**base, "reminderTime": None}).reminder_time is None
+    assert _parse_chore({**base, "reminderTime": "7h"}).reminder_time is None

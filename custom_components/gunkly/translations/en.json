@@ -73,6 +73,9 @@
           },
           "turns": {
             "name": "Turns"
+          },
+          "reminder_times": {
+            "name": "Reminder times"
           }
         }
       },
@@ -84,6 +87,9 @@
           },
           "turns": {
             "name": "Turns"
+          },
+          "reminder_times": {
+            "name": "Reminder times"
           }
         }
       },
@@ -98,6 +104,9 @@
           },
           "turn_name": {
             "name": "Turn"
+          },
+          "reminder_time": {
+            "name": "Reminder time"
           }
         }
       }

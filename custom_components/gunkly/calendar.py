@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant
@@ -16,6 +16,10 @@ from .coordinator import GunklyConfigEntry, GunklyCoordinator
 from .entity import GunklyEntity
 
 PARALLEL_UPDATES = 0
+
+# A chore with a reminder time becomes a short event starting then (so calendar
+# triggers fire at that time); without one it stays an all-day event.
+TIMED_EVENT = timedelta(minutes=30)
 
 
 async def async_setup_entry(
@@ -31,7 +35,7 @@ async def async_setup_entry(
 
 
 class GunklyCalendar(GunklyEntity, CalendarEntity):
-    """Chore occurrences of a household as all-day events."""
+    """Chore occurrences of a household: at their reminder time, else all day."""
 
     _attr_translation_key = "chores"
 
@@ -45,13 +49,20 @@ class GunklyCalendar(GunklyEntity, CalendarEntity):
         if (found := next_due(self.chores)) is None:
             return None
         chore, due = found
+        start, end = self._span(due, chore.reminder_time)
         return CalendarEvent(
-            start=due,
-            end=due + timedelta(days=1),
+            start=start,
+            end=end,
             summary=chore.name,
             description=chore.notes or None,
             uid=f"{chore.id}-{due.isoformat()}",
         )
+
+    def _span(self, day: date, when: time | None) -> tuple[date | datetime, date | datetime]:
+        start = self.coordinator.at(self.household.id, day, when)
+        if isinstance(start, datetime):
+            return start, start + TIMED_EVENT
+        return start, start + timedelta(days=1)
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
@@ -69,12 +80,13 @@ class GunklyCalendar(GunklyEntity, CalendarEntity):
                 translation_key="request_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
-        return [
-            CalendarEvent(
-                start=e.day,
-                end=e.day + timedelta(days=1),
-                summary=e.name,
-                uid=f"{e.chore_id}-{e.day.isoformat()}",
+        times = {c.id: c.reminder_time for c in self.chores}
+        events = []
+        for e in sorted(entries, key=lambda e: (e.day, e.name)):
+            begin, end = self._span(e.day, times.get(e.chore_id))
+            events.append(
+                CalendarEvent(
+                    start=begin, end=end, summary=e.name, uid=f"{e.chore_id}-{e.day.isoformat()}"
+                )
             )
-            for e in sorted(entries, key=lambda e: (e.day, e.name))
-        ]
+        return events

@@ -53,11 +53,17 @@ def chore(cid: str, name: str, status: str, due: str | None, **extra: Any) -> di
 
 CHORES = [
     chore("c1", "Take out bins", "overdue", "2026-11-20", turnName="Alex"),
-    chore("c2", "Water plants", "today", "2026-11-22", notes="Fern needs extra"),
+    chore(
+        "c2", "Water plants", "today", "2026-11-22", notes="Fern needs extra", reminderTime="07:30"
+    ),
     chore("c3", "Clean oven", "thisWeek", "2026-11-25"),
     chore("c4", "Deep clean", "later", "2026-12-20"),
     chore("c5", "Paused thing", "paused", "2026-11-21"),
 ]
+
+
+# Reminder times are local to the household's zone, which differs from the test default.
+HOUSEHOLD = {"id": "hh1", "name": "Home", "timezone": "Asia/Tokyo", "role": "member"}
 
 
 @pytest.fixture(autouse=True)
@@ -71,6 +77,7 @@ def mock_api(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
     aioclient_mock.get(f"{API}/token", json=token_payload())
     aioclient_mock.get(f"{API}/households/hh1/chores", json=CHORES)
     aioclient_mock.get(f"{API}/households/hh2/chores", json=[])
+    aioclient_mock.get(f"{API}/households/hh1", json=HOUSEHOLD)
     return aioclient_mock
 
 
@@ -106,3 +113,4 @@ def set_scopes(mock: AiohttpClientMocker, scopes: list[str]) -> None:
     mock.get(f"{API}/token", json=token_payload(scopes))
     mock.get(f"{API}/households/hh1/chores", json=CHORES)
     mock.get(f"{API}/households/hh2/chores", json=[])
+    mock.get(f"{API}/households/hh1", json=HOUSEHOLD)

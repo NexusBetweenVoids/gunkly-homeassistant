@@ -60,11 +60,11 @@ Delete the integration from **Settings, Devices & services**, then (optionally) 
 
 | Entity | Description |
 | --- | --- |
-| `todo.<household>_chores` | Overdue, today and this-week chores (plus later ones if enabled), earliest due first, with due date and notes; for chores that take turns the description starts with whose turn it is (Gunkly 0.5 or newer). Checking an item completes the chore (needs `chores:complete`). Adding an item creates a one-off chore due that day, today by default (needs `chores:write`). Items cannot be deleted or reordered. Without the scopes the list is read-only. |
-| `sensor.<household>_overdue_chores` | Number of overdue chores; attribute `chores` lists their names, `turns` maps each chore that takes turns to whose turn it is. |
-| `sensor.<household>_chores_due_today` | Number of chores due today; attributes `chores` and `turns` as above. |
-| `sensor.<household>_next_chore_due` | Date of the earliest due active chore (overdue chores count, paused ones do not); attributes `chore_id`, `chore_name`, `turn_name` (whose turn it is, if the chore takes turns). |
-| `calendar.<household>_chores` | Chore occurrences as all-day events. Ranges longer than Gunkly's 62-day limit are fetched in several requests. |
+| `todo.<household>_chores` | Overdue, today and this-week chores (plus later ones if enabled), earliest due first, with due date (and time, for chores with a reminder time; Gunkly 0.5.3 or newer) and notes; for chores that take turns the description starts with whose turn it is (Gunkly 0.5 or newer). Checking an item completes the chore (needs `chores:complete`). Adding an item creates a one-off chore due that day, today by default (needs `chores:write`). Items cannot be deleted or reordered. Without the scopes the list is read-only. |
+| `sensor.<household>_overdue_chores` | Number of overdue chores; attribute `chores` lists their names, `turns` maps each chore that takes turns to whose turn it is, `reminder_times` maps each chore with a reminder time to it (`HH:MM`, the household's time zone). |
+| `sensor.<household>_chores_due_today` | Number of chores due today; attributes `chores`, `turns` and `reminder_times` as above. |
+| `sensor.<household>_next_chore_due` | Date of the earliest due active chore (overdue chores count, paused ones do not); attributes `chore_id`, `chore_name`, `turn_name` (whose turn it is, if the chore takes turns), `reminder_time` (`HH:MM` or empty). |
+| `calendar.<household>_chores` | Chore occurrences. A chore with a reminder time (Gunkly 0.5.3 or newer) is a 30-minute event starting at that time in the household's time zone, so a calendar trigger fires when the reminder does; other chores are all-day events. Ranges longer than Gunkly's 62-day limit are fetched in several requests. |
 
 ## Actions
 
@@ -94,6 +94,27 @@ automation:
       - action: notify.mobile_app_phone
         data:
           message: "{{ trigger.event.data.chore_name }} is overdue ({{ trigger.event.data.household_name }})"
+```
+
+Announce a chore at its reminder time (the calendar event starts then):
+
+```yaml
+automation:
+  - alias: Chore reminder on the speaker
+    triggers:
+      - trigger: calendar
+        event: start
+        entity_id: calendar.home_chores
+    conditions:
+      - condition: template
+        value_template: "{{ not trigger.calendar_event.all_day }}"
+    actions:
+      - action: tts.speak
+        target:
+          entity_id: tts.home_assistant_cloud
+        data:
+          media_player_entity_id: media_player.kitchen
+          message: "Time to {{ trigger.calendar_event.summary }}"
 ```
 
 Morning reminder when something is due:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from http import HTTPStatus
 from typing import Any
 
@@ -84,6 +84,8 @@ class Chore:
     kind: str = "recurring"
     assignees: tuple[str, ...] = field(default_factory=tuple)
     turn_name: str | None = None  # whose turn it is (chores that take turns; Gunkly 0.5+)
+    # When the due-day reminder goes off, in the household's time zone (Gunkly 0.5.3+).
+    reminder_time: time | None = None
 
     @property
     def active(self) -> bool:
@@ -133,6 +135,15 @@ def _parse_date(value: Any) -> date | None:
         return None
 
 
+def _parse_time(value: Any) -> time | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return time.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def _parse_chore(raw: dict[str, Any]) -> Chore:
     return Chore(
         id=str(raw["id"]),
@@ -144,6 +155,7 @@ def _parse_chore(raw: dict[str, Any]) -> Chore:
         kind=str(raw.get("kind") or "recurring"),
         assignees=tuple(str(a) for a in raw.get("assignees") or ()),
         turn_name=str(raw["turnName"]) if raw.get("turnName") else None,
+        reminder_time=_parse_time(raw.get("reminderTime")),
     )
 
 
@@ -225,6 +237,12 @@ class GunklyClient:
             return [_parse_chore(c) for c in data]
         except (KeyError, TypeError, AttributeError) as err:
             raise GunklyConnectionError("unexpected chores response") from err
+
+    async def get_household_timezone(self, household_id: str) -> str | None:
+        """Return the household's IANA time zone (reminder times are local to it)."""
+        data = await self._request("GET", f"/households/{household_id}")
+        zone = data.get("timezone") if isinstance(data, dict) else None
+        return str(zone) if zone else None
 
     async def complete_chore(
         self, household_id: str, chore_id: str, note: str | None = None

@@ -110,7 +110,9 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
                 uid=c.id,
                 summary=c.name,
                 status=TodoItemStatus.NEEDS_ACTION,
-                due=c.due_date,
+                due=self.coordinator.at(self.household.id, c.due_date, c.reminder_time)
+                if c.due_date
+                else None,
                 description=self._description(c),
             )
             for c in chores
