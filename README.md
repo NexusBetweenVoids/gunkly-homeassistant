@@ -29,7 +29,7 @@ Copy `custom_components/gunkly` from this repository into the `custom_components
 
 ## Create an API token in Gunkly
 
-Gunkly 0.5.2 and newer: **Settings, Integrations, Home Assistant** walks you through all of this, with buttons that open your Home Assistant (via My Home Assistant) to install the integration from HACS and to add it, and **Create a key for Home Assistant**, which prefills the token below and shows the server address to paste. Older versions: open **Account, Integrations**.
+Gunkly 0.5.2 and newer: **Settings, Integrations, Home Assistant** walks you through all of this, with a button that opens your Home Assistant (via My Home Assistant) to install the integration from HACS, and **Create a key for Home Assistant**, which prefills the token below and shows the server address to paste next to an **Add to Home Assistant** button. Older versions: open **Account, Integrations**.
 
 1. In Gunkly open **Settings, Integrations** and create a token (step-up verification is required).
 2. Pick the households the token may access.
