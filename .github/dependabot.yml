@@ -1,13 +1,16 @@
+# Every other day (cron). Dependabot only opens a PR when an update exists, so quiet days cost nothing.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 4 */2 * *" # every other day, 04:00 UTC
   - package-ecosystem: pip
     directory: /
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 4 */2 * *" # every other day, 04:00 UTC
     groups:
       test-dependencies:
         patterns: ["*"]
