@@ -86,6 +86,9 @@ class Chore:
     turn_name: str | None = None  # whose turn it is (chores that take turns; Gunkly 0.5+)
     # When the due-day reminder goes off, in the household's time zone (Gunkly 0.5.3+).
     reminder_time: time | None = None
+    area_id: str | None = None
+    # Resolved by the coordinator from the household's areas (when areas are on).
+    area_name: str | None = None
 
     @property
     def active(self) -> bool:
@@ -156,6 +159,7 @@ def _parse_chore(raw: dict[str, Any]) -> Chore:
         assignees=tuple(str(a) for a in raw.get("assignees") or ()),
         turn_name=str(raw["turnName"]) if raw.get("turnName") else None,
         reminder_time=_parse_time(raw.get("reminderTime")),
+        area_id=str(raw["areaId"]) if raw.get("areaId") else None,
     )
 
 
@@ -243,6 +247,49 @@ class GunklyClient:
         data = await self._request("GET", f"/households/{household_id}")
         zone = data.get("timezone") if isinstance(data, dict) else None
         return str(zone) if zone else None
+
+    async def get_area_names(self, household_id: str) -> dict[str, str]:
+        """Return the household's area names by id; empty while areas are off."""
+        info = await self._request("GET", f"/households/{household_id}")
+        if not isinstance(info, dict) or not info.get("areasEnabled"):
+            return {}
+        data = await self._request("GET", f"/households/{household_id}/areas")
+        try:
+            return {str(a["id"]): str(a.get("name", "")) for a in data}
+        except (KeyError, TypeError) as err:
+            raise GunklyConnectionError("unexpected areas response") from err
+
+    async def pause_chore(self, household_id: str, chore_id: str, until: date | None) -> None:
+        """Pause a chore, until a date or indefinitely."""
+        await self._request(
+            "POST",
+            f"/households/{household_id}/chores/{chore_id}/pause",
+            json={"until": until.isoformat()} if until else {},
+        )
+
+    async def resume_chore(self, household_id: str, chore_id: str) -> None:
+        """Resume a paused chore."""
+        await self._request("POST", f"/households/{household_id}/chores/{chore_id}/resume")
+
+    async def undo_last_completion(self, household_id: str, chore_id: str) -> bool:
+        """Revert the chore's most recent completion; False when there is none to undo."""
+        data = await self._request(
+            "GET",
+            f"/households/{household_id}/chores/{chore_id}/completions",
+            params={"limit": "20"},
+        )
+        try:
+            items = data.get("items") if isinstance(data, dict) else data
+            latest = next((c for c in items or () if not c.get("revertedAt")), None)
+        except (AttributeError, TypeError) as err:
+            raise GunklyConnectionError("unexpected completions response") from err
+        if latest is None:
+            return False
+        await self._request(
+            "POST",
+            f"/households/{household_id}/chores/{chore_id}/completions/{latest['id']}/revert",
+        )
+        return True
 
     async def complete_chore(
         self, household_id: str, chore_id: str, note: str | None = None

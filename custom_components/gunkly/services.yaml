@@ -40,3 +40,40 @@ skip_chore:
       example: "Vacuum the stairs"
       selector:
         text:
+pause_chore:
+  target:
+    entity:
+      integration: gunkly
+      domain: todo
+  fields:
+    chore:
+      required: true
+      example: "Water the garden"
+      selector:
+        text:
+    until:
+      required: false
+      selector:
+        date:
+resume_chore:
+  target:
+    entity:
+      integration: gunkly
+      domain: todo
+  fields:
+    chore:
+      required: true
+      example: "Water the garden"
+      selector:
+        text:
+undo_completion:
+  target:
+    entity:
+      integration: gunkly
+      domain: todo
+  fields:
+    chore:
+      required: true
+      example: "Vacuum the stairs"
+      selector:
+        text:

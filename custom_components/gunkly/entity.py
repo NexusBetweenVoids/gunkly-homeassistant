@@ -82,6 +82,38 @@ class GunklyEntity(CoordinatorEntity[GunklyCoordinator]):
             self.coordinator.client.snooze_chore(self.household.id, self.chore_id(chore), until)
         )
 
+    async def async_pause_chore(self, chore: str, until: date | None = None) -> None:
+        """Pause a chore until a date, or until it is resumed (entity service)."""
+        self._require_complete()
+        await self.api_call(
+            self.coordinator.client.pause_chore(self.household.id, self.chore_id(chore), until)
+        )
+
+    async def async_resume_chore(self, chore: str) -> None:
+        """Resume a paused chore (entity service)."""
+        self._require_complete()
+        await self.api_call(
+            self.coordinator.client.resume_chore(self.household.id, self.chore_id(chore))
+        )
+
+    async def async_undo_completion(self, chore: str) -> None:
+        """Undo the chore's most recent completion (entity service)."""
+        self._require_complete()
+        undone: list[bool] = []
+
+        async def undo() -> None:
+            undone.append(
+                await self.coordinator.client.undo_last_completion(
+                    self.household.id, self.chore_id(chore)
+                )
+            )
+
+        await self.api_call(undo())
+        if not undone[0]:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="nothing_to_undo"
+            )
+
     async def async_skip_chore(self, chore: str) -> None:
         """Skip a chore occurrence (entity service)."""
         self._require_complete()

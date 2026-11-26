@@ -101,6 +101,8 @@ async def test_reminder_time_events(
     assert timed.summary == "Water plants"
     assert timed.start == datetime(2026, 11, 22, 7, 30, tzinfo=tokyo)
     assert timed.end == datetime(2026, 11, 22, 8, 0, tzinfo=tokyo)
+    assert timed.location is None
+    assert allday.location == "Kitchen"  # the chore's area
     assert allday.start == date(2026, 11, 25)
     assert allday.end == date(2026, 11, 26)
 
@@ -108,10 +110,13 @@ async def test_reminder_time_events(
 async def test_no_reminder_times_no_household_request(
     hass: HomeAssistant, setup, mock_api: AiohttpClientMocker
 ) -> None:
-    """Without reminder times (older Gunkly) the household is never fetched."""
+    """Without reminder times and areas (older Gunkly) the household is never fetched."""
     mock_api.clear_requests()
     mock_api.get(f"{API}/token", json=token_payload())
-    mock_api.get(f"{API}/households/hh1/chores", json=[{**c, "reminderTime": None} for c in CHORES])
+    mock_api.get(
+        f"{API}/households/hh1/chores",
+        json=[{**c, "reminderTime": None, "areaId": None} for c in CHORES],
+    )
     mock_api.get(f"{API}/households/hh2/chores", json=[])
     await setup()
     assert not [c for c in mock_api.mock_calls if str(c[1]).endswith("/households/hh1")]

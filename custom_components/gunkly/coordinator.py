@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from datetime import date, datetime, time, timedelta, tzinfo
 
@@ -29,6 +30,9 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+AREA_REFRESH = 30  # polls between area name refreshes (30 min at the default interval)
+AREA_RETRY = 5  # polls before refetching for an area id that is not known yet
 
 type GunklyConfigEntry = ConfigEntry[GunklyCoordinator]
 type GunklyData = dict[str, list[Chore]]
@@ -60,17 +64,21 @@ class GunklyCoordinator(DataUpdateCoordinator[GunklyData]):
         self.token = token
         # Household time zones, fetched once when a chore first has a reminder time.
         self.timezones: dict[str, tzinfo] = {}
+        # Area names per household (empty while areas are off), fetched when chores carry an
+        # area, refreshed every AREA_REFRESH polls and (at most every AREA_RETRY polls) when a
+        # chore points at an area not seen yet.
+        self.area_names: dict[str, dict[str, str]] = {}
+        self._area_age: dict[str, int] = {}
 
     async def _async_update_data(self) -> GunklyData:
         previous = self.data
         data: GunklyData = {}
         try:
             for household in self.token.households:
-                data[household.id] = await self.client.get_chores(household.id)
-                if household.id not in self.timezones and any(
-                    c.reminder_time for c in data[household.id]
-                ):
+                chores = await self.client.get_chores(household.id)
+                if household.id not in self.timezones and any(c.reminder_time for c in chores):
                     self.timezones[household.id] = await self._zone(household.id)
+                data[household.id] = await self._with_areas(household.id, chores)
         except GunklyAuthError as err:
             raise ConfigEntryAuthFailed(
                 translation_domain=DOMAIN, translation_key="auth_failed"
@@ -97,6 +105,26 @@ class GunklyCoordinator(DataUpdateCoordinator[GunklyData]):
         if previous is not None:
             self._fire_overdue_events(previous, data)
         return data
+
+    async def _with_areas(self, household_id: str, chores: list[Chore]) -> list[Chore]:
+        """Fill in area names, fetching them when needed (see area_names)."""
+        ids = {c.area_id for c in chores if c.area_id}
+        if not ids:
+            return chores
+        known = self.area_names.get(household_id)
+        age = self._area_age.get(household_id, 0) + 1
+        stale = (
+            known is None or age >= AREA_REFRESH or (age >= AREA_RETRY and not ids <= known.keys())
+        )
+        if stale:
+            known = self.area_names[household_id] = await self.client.get_area_names(household_id)
+            age = 0
+        self._area_age[household_id] = age
+        names = known or {}
+        return [
+            dataclasses.replace(c, area_name=names.get(c.area_id)) if c.area_id else c
+            for c in chores
+        ]
 
     async def _zone(self, household_id: str) -> tzinfo:
         """The household's time zone, or Home Assistant's when it is unknown."""

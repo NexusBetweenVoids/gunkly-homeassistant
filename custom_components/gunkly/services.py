@@ -16,8 +16,11 @@ from .const import (
     ATTR_UNTIL,
     DOMAIN,
     SERVICE_COMPLETE_CHORE,
+    SERVICE_PAUSE_CHORE,
+    SERVICE_RESUME_CHORE,
     SERVICE_SKIP_CHORE,
     SERVICE_SNOOZE_CHORE,
+    SERVICE_UNDO_COMPLETION,
 )
 
 
@@ -36,6 +39,17 @@ def async_setup_services(hass: HomeAssistant) -> None:
             {probatio.Required(ATTR_CHORE): cv.string, probatio.Required(ATTR_UNTIL): cv.date},
         ),
         (SERVICE_SKIP_CHORE, "async_skip_chore", {probatio.Required(ATTR_CHORE): cv.string}),
+        (
+            SERVICE_PAUSE_CHORE,
+            "async_pause_chore",
+            {probatio.Required(ATTR_CHORE): cv.string, probatio.Optional(ATTR_UNTIL): cv.date},
+        ),
+        (SERVICE_RESUME_CHORE, "async_resume_chore", {probatio.Required(ATTR_CHORE): cv.string}),
+        (
+            SERVICE_UNDO_COMPLETION,
+            "async_undo_completion",
+            {probatio.Required(ATTR_CHORE): cv.string},
+        ),
     )
     for name, func, fields in commands:
         service.async_register_platform_entity_service(

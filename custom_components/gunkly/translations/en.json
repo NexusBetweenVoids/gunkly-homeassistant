@@ -55,6 +55,9 @@
         "state_attributes": {
           "turn": {
             "name": "Turn"
+          },
+          "area": {
+            "name": "Area"
           }
         }
       }
@@ -76,6 +79,9 @@
           },
           "reminder_times": {
             "name": "Reminder times"
+          },
+          "areas": {
+            "name": "Areas"
           }
         }
       },
@@ -90,6 +96,9 @@
           },
           "reminder_times": {
             "name": "Reminder times"
+          },
+          "areas": {
+            "name": "Areas"
           }
         }
       },
@@ -107,6 +116,9 @@
           },
           "reminder_time": {
             "name": "Reminder time"
+          },
+          "area": {
+            "name": "Area"
           }
         }
       }
@@ -133,6 +145,9 @@
     },
     "unknown_item": {
       "message": "The to-do item has no chore id."
+    },
+    "nothing_to_undo": {
+      "message": "This chore has no completion to undo."
     }
   },
   "services": {
@@ -171,6 +186,40 @@
         "chore": {
           "name": "Chore",
           "description": "Chore id or exact name."
+        }
+      }
+    },
+    "pause_chore": {
+      "name": "Pause chore",
+      "description": "Pauses a chore: no reminders and not due until it is resumed, or until the given date.",
+      "fields": {
+        "chore": {
+          "name": "Chore",
+          "description": "Chore id or exact name."
+        },
+        "until": {
+          "name": "Until",
+          "description": "Optional date the chore resumes by itself (after today). Leave empty to pause until resumed."
+        }
+      }
+    },
+    "resume_chore": {
+      "name": "Resume chore",
+      "description": "Resumes a paused chore.",
+      "fields": {
+        "chore": {
+          "name": "Chore",
+          "description": "Chore id or exact name."
+        }
+      }
+    },
+    "undo_completion": {
+      "name": "Undo completion",
+      "description": "Undoes the most recent completion of a chore and restores its previous due date.",
+      "fields": {
+        "chore": {
+          "name": "Chore",
+          "description": "Chore id or exact name (use the id for a completed one-off chore, which is archived)."
         }
       }
     }

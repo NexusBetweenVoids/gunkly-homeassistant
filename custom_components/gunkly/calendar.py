@@ -55,6 +55,7 @@ class GunklyCalendar(GunklyEntity, CalendarEntity):
             end=end,
             summary=chore.name,
             description=chore.notes or None,
+            location=chore.area_name,
             uid=f"{chore.id}-{due.isoformat()}",
         )
 
@@ -81,12 +82,17 @@ class GunklyCalendar(GunklyEntity, CalendarEntity):
                 translation_placeholders={"error": str(err)},
             ) from err
         times = {c.id: c.reminder_time for c in self.chores}
+        areas = {c.id: c.area_name for c in self.chores}
         events = []
         for e in sorted(entries, key=lambda e: (e.day, e.name)):
             begin, end = self._span(e.day, times.get(e.chore_id))
             events.append(
                 CalendarEvent(
-                    start=begin, end=end, summary=e.name, uid=f"{e.chore_id}-{e.day.isoformat()}"
+                    start=begin,
+                    end=end,
+                    summary=e.name,
+                    location=areas.get(e.chore_id),
+                    uid=f"{e.chore_id}-{e.day.isoformat()}",
                 )
             )
         return events

@@ -32,5 +32,8 @@ ATTR_UNTIL: Final = "until"
 SERVICE_COMPLETE_CHORE: Final = "complete_chore"
 SERVICE_SNOOZE_CHORE: Final = "snooze_chore"
 SERVICE_SKIP_CHORE: Final = "skip_chore"
+SERVICE_PAUSE_CHORE: Final = "pause_chore"
+SERVICE_RESUME_CHORE: Final = "resume_chore"
+SERVICE_UNDO_COMPLETION: Final = "undo_completion"
 
 DEFAULT_SCAN_INTERVAL: Final = timedelta(seconds=DEFAULT_POLL_INTERVAL)

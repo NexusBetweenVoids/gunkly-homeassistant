@@ -50,6 +50,7 @@ async def test_items(hass: HomeAssistant, setup) -> None:
     assert items[0]["due"] == "2026-11-20"  # no reminder time: a date
     assert items[1]["description"] == "Fern needs extra"
     assert items[0]["description"] == "Turn: Alex"  # takes turns
+    assert items[2]["description"] == "Area: Kitchen"  # the chore's area
     assert all(i["status"] == "needs_action" for i in items)
     assert hass.states.get(ENTITY).state == "3"
 

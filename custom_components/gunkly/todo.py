@@ -38,6 +38,7 @@ from .entity import GunklyEntity
 PARALLEL_UPDATES = 1
 
 TURN_KEY = f"component.{DOMAIN}.entity.todo.chores.state_attributes.turn.name"
+AREA_KEY = f"component.{DOMAIN}.entity.todo.chores.state_attributes.area.name"
 
 
 async def async_setup_entry(
@@ -66,6 +67,7 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
         """Initialise the list; features follow the token's scopes."""
         super().__init__(coordinator, household, "todo")
         self._turn_label = "Turn"
+        self._area_label = "Area"
         self._statuses = {STATUS_OVERDUE, STATUS_TODAY, STATUS_THIS_WEEK}
         if show_later:
             self._statuses.add(STATUS_LATER)
@@ -84,16 +86,19 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
         self._attr_supported_features = features
 
     async def async_added_to_hass(self) -> None:
-        """Load the translated "Turn" label for item descriptions."""
+        """Load the translated "Turn" and "Area" labels for item descriptions."""
         await super().async_added_to_hass()
         strings = await async_get_translations(
             self.hass, self.hass.config.language, "entity", {DOMAIN}
         )
         self._turn_label = strings.get(TURN_KEY, self._turn_label)
+        self._area_label = strings.get(AREA_KEY, self._area_label)
 
     def _description(self, chore: Chore) -> str | None:
-        """Whose turn it is (if the chore takes turns), then the notes."""
+        """The area, whose turn it is (if the chore takes turns), then the notes."""
         parts = []
+        if chore.area_name:
+            parts.append(f"{self._area_label}: {chore.area_name}")
         if chore.turn_name:
             parts.append(f"{self._turn_label}: {chore.turn_name}")
         if chore.notes:

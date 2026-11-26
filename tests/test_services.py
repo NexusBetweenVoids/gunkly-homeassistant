@@ -101,3 +101,73 @@ async def test_guest_household_refuses_actions(hass: HomeAssistant, setup, mock_
             DOMAIN, "skip_chore", {"entity_id": "todo.cabin_chores", "chore": "c1"}, blocking=True
         )
     assert not _posts(mock_api)
+
+
+async def test_pause_resume(hass: HomeAssistant, setup, mock_api) -> None:
+    """Pause sends an optional date, resume posts; paused chores resolve by name too."""
+    await setup()
+    mock_api.post(f"{API}/households/hh1/chores/c1/pause", json={})
+    mock_api.post(f"{API}/households/hh1/chores/c5/pause", json={})
+    mock_api.post(f"{API}/households/hh1/chores/c5/resume", json={})
+    await hass.services.async_call(
+        DOMAIN,
+        "pause_chore",
+        {"entity_id": ENTITY, "chore": "Take out bins", "until": "2026-12-24"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        DOMAIN, "pause_chore", {"entity_id": ENTITY, "chore": "c5"}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN, "resume_chore", {"entity_id": ENTITY, "chore": "Paused thing"}, blocking=True
+    )
+    posts = _posts(mock_api)
+    assert str(posts[0][1]).endswith("/chores/c1/pause")
+    assert posts[0][2] == {"until": "2026-12-24"}
+    assert posts[1][2] == {}
+    assert str(posts[2][1]).endswith("/chores/c5/resume")
+
+
+async def test_undo_completion(hass: HomeAssistant, setup, mock_api) -> None:
+    """Undo reverts the most recent completion that is not reverted yet."""
+    await setup()
+    mock_api.get(
+        f"{API}/households/hh1/chores/c1/completions",
+        json={
+            "items": [
+                {"id": "k3", "revertedAt": "2026-11-21T10:00:00Z"},
+                {"id": "k2", "revertedAt": None},
+                {"id": "k1", "revertedAt": None},
+            ],
+            "next": None,
+        },
+    )
+    mock_api.post(f"{API}/households/hh1/chores/c1/completions/k2/revert", status=204)
+    await hass.services.async_call(
+        DOMAIN, "undo_completion", {"entity_id": ENTITY, "chore": "Take out bins"}, blocking=True
+    )
+    posts = _posts(mock_api)
+    assert len(posts) == 1 and str(posts[0][1]).endswith("/completions/k2/revert")
+
+
+async def test_undo_nothing(hass: HomeAssistant, setup, mock_api) -> None:
+    """With no completion left to undo the action says so and changes nothing."""
+    await setup()
+    mock_api.get(f"{API}/households/hh1/chores/c3/completions", json={"items": [], "next": None})
+    with pytest.raises(ServiceValidationError, match="no completion to undo"):
+        await hass.services.async_call(
+            DOMAIN, "undo_completion", {"entity_id": ENTITY, "chore": "c3"}, blocking=True
+        )
+    assert not _posts(mock_api)
+
+
+@pytest.mark.parametrize("service", ["pause_chore", "resume_chore", "undo_completion"])
+async def test_new_actions_need_scope(hass: HomeAssistant, setup, mock_api, service) -> None:
+    """Pause, resume and undo need chores:complete like completing does."""
+    set_scopes(mock_api, ["chores:read", "chores:write"])
+    await setup()
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, service, {"entity_id": ENTITY, "chore": "c1"}, blocking=True
+        )
+    assert not _posts(mock_api)
