@@ -17,11 +17,23 @@ It uses only Home Assistant's own HTTP client; there are no extra Python depende
 
 ## Installation
 
-### HACS (custom repository)
+[![Open your Home Assistant instance and open this repository.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=NexusBetweenVoids&repository=gunkly-homeassistant&category=integration)
+
+The button opens this repository in the **Marketplace** (Home Assistant 2026.11 and newer) or in **HACS** (older versions). If Gunkly is not listed there yet, it offers to add it. Then download it and restart Home Assistant.
+
+### Marketplace (Home Assistant 2026.11 and newer)
+
+1. Go to **Settings, Marketplace** and search for **Gunkly**.
+2. Not listed yet? Select **Add from link** (upper-right corner), enter `NexusBetweenVoids/gunkly-homeassistant` and select **Add**. Adding a repository needs the Marketplace's GitHub connection.
+3. Download it and restart Home Assistant.
+
+### HACS (Home Assistant 2026.10 and older)
 
 1. In HACS open the three-dot menu, then **Custom repositories**.
 2. Add `https://github.com/NexusBetweenVoids/gunkly-homeassistant` with type **Integration**.
 3. Search for **Gunkly**, download it and restart Home Assistant.
+
+Installed through HACS before upgrading to 2026.11? It stays installed and keeps receiving updates through the Marketplace.
 
 ### Manual
 
@@ -29,7 +41,7 @@ Copy `custom_components/gunkly` from this repository into the `custom_components
 
 ## Create an API token in Gunkly
 
-Gunkly 0.5.2 and newer: **Settings, Integrations, Home Assistant** walks you through all of this, with a button that opens your Home Assistant (via My Home Assistant) to install the integration from HACS, and **Create a key for Home Assistant**, which prefills the token below and shows the server address to paste next to an **Add to Home Assistant** button. Older versions: open **Account, Integrations**.
+Gunkly 0.5.2 and newer: **Settings, Integrations, Home Assistant** walks you through all of this, with a button that opens your Home Assistant (via My Home Assistant) to install the integration from the Marketplace (or HACS), and **Create a key for Home Assistant**, which prefills the token below and shows the server address to paste next to an **Add to Home Assistant** button. Older versions: open **Account, Integrations**.
 
 1. In Gunkly open **Settings, Integrations** and create a token (step-up verification is required).
 2. Pick the households the token may access.
