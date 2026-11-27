@@ -8,7 +8,7 @@ from datetime import date, datetime, time, timedelta, tzinfo
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, ServiceValidationError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -160,11 +160,30 @@ class GunklyCoordinator(DataUpdateCoordinator[GunklyData]):
                         },
                     )
 
-    def find_chore(self, household_id: str, ref: str) -> Chore | None:
-        """Find a chore by id, or by unique case-insensitive name."""
-        chores = (self.data or {}).get(household_id, [])
-        for chore in chores:
-            if chore.id == ref:
-                return chore
-        matches = [c for c in chores if c.name.casefold() == ref.casefold()]
-        return matches[0] if len(matches) == 1 else None
+    def resolve_chore(self, household_id: str, ref: str) -> Chore:
+        """Return the household's chore with this exact id, or this name (case-insensitive).
+
+        Anything else is refused here, before any request is made.
+        """
+        return match_chore((self.data or {}).get(household_id, []), ref)
+
+
+def match_chore(chores: list[Chore], ref: str) -> Chore:
+    """Pick a chore by exact id, else by unique case-insensitive name."""
+    for chore in chores:
+        if chore.id == ref:
+            return chore
+    matches = [c for c in chores if c.name.casefold() == ref.casefold()]
+    if not matches:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="chore_not_found",
+            translation_placeholders={"chore": ref},
+        )
+    if len(matches) > 1:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="chore_ambiguous",
+            translation_placeholders={"chore": ref, "count": str(len(matches))},
+        )
+    return matches[0]

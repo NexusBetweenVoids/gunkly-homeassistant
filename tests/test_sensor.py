@@ -34,7 +34,7 @@ async def test_area_names(hass: HomeAssistant, setup, mock_api) -> None:
 
     await setup()
     coordinator = hass.config_entries.async_entries("gunkly")[0].runtime_data
-    oven = coordinator.find_chore("hh1", "c3")
+    oven = coordinator.resolve_chore("hh1", "c3")
     assert oven is not None and oven.area_name == "Kitchen"
 
     # Areas switched off in Gunkly: the next refresh of the names drops them.
@@ -44,7 +44,7 @@ async def test_area_names(hass: HomeAssistant, setup, mock_api) -> None:
     mock_api.get(f"{API}/households/hh1", json={**HOUSEHOLD, "areasEnabled": False})
     coordinator._area_age["hh1"] = 99  # due for a refresh
     await coordinator.async_refresh()
-    oven = coordinator.find_chore("hh1", "c3")
+    oven = coordinator.resolve_chore("hh1", "c3")
     assert oven is not None and oven.area_name is None
     assert not [c for c in mock_api.mock_calls if str(c[1]).endswith("/areas")]
 

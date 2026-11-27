@@ -81,10 +81,15 @@ class GunklyCalendar(GunklyEntity, CalendarEntity):
                 translation_key="request_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
+        paused = {c.id: c for c in self.chores if c.paused}
         times = {c.id: c.reminder_time for c in self.chores}
         areas = {c.id: c.area_name for c in self.chores}
         events = []
         for e in sorted(entries, key=lambda e: (e.day, e.name)):
+            if (p := paused.get(e.chore_id)) is not None and (
+                p.paused_until is None or e.day < p.paused_until
+            ):
+                continue  # paused: no reminders and not due, so not on the calendar
             begin, end = self._span(e.day, times.get(e.chore_id))
             events.append(
                 CalendarEvent(

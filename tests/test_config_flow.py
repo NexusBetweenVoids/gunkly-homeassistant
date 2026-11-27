@@ -35,7 +35,7 @@ async def test_user_success(hass: HomeAssistant, mock_api: AiohttpClientMocker) 
     """A valid token creates an entry with a normalised URL and stripped token."""
     result = await _start(hass)
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Gunkly (Sam)"
+    assert result["title"] == "Gunkly (Sam @ gunkly.test)"
     assert result["data"] == {CONF_URL: URL, CONF_TOKEN: TOKEN}
     assert result["result"].unique_id == "tok1@gunkly.test:443"
     assert mock_api.mock_calls[0][3]["Authorization"] == f"Bearer {TOKEN}"
@@ -145,3 +145,26 @@ async def test_options(hass: HomeAssistant, setup) -> None:
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options == {CONF_POLL_INTERVAL: 120, CONF_SHOW_LATER: True}
+
+
+async def test_two_servers_are_told_apart(hass: HomeAssistant, setup, mock_api) -> None:
+    """Entries of two servers get distinct device names (new entities, no `_2` ids)."""
+    from homeassistant.helpers import device_registry as dr
+
+    await setup()
+    other = MockConfigEntry(
+        domain=DOMAIN,
+        title="Gunkly (Sam @ other.test)",
+        unique_id="tok2@other.test:443",
+        data={CONF_URL: "https://other.test", CONF_TOKEN: "gk_" + "b" * 43},
+    )
+    other.add_to_hass(hass)
+    base = "https://other.test/api/v1"
+    mock_api.get(f"{base}/token", json=token_payload(["chores:read"]))
+    mock_api.get(f"{base}/households/hh1/chores", json=[])
+    mock_api.get(f"{base}/households/hh2/chores", json=[])
+    assert await hass.config_entries.async_setup(other.entry_id)
+    await hass.async_block_till_done()
+    names = {d.name for d in dr.async_get(hass).devices}
+    assert {"Home", "Home (other.test)"} <= names
+    assert hass.states.get("todo.home_chores") is not None  # existing ids unchanged

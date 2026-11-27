@@ -123,3 +123,19 @@ def set_scopes(mock: AiohttpClientMocker, scopes: list[str]) -> None:
     mock.get(f"{API}/households/hh2/chores", json=[])
     mock.get(f"{API}/households/hh1", json=HOUSEHOLD)
     mock.get(f"{API}/households/hh1/areas", json=AREAS)
+
+
+def set_chores(
+    mock: AiohttpClientMocker,
+    chores: list[dict[str, Any]],
+    archived: list[dict[str, Any]] | None = None,
+) -> None:
+    """Replace the chores the mocked server lists for the first household."""
+    mock.clear_requests()
+    if archived is not None:  # registered first: the more specific URL must match first
+        mock.get(f"{API}/households/hh1/chores?archived=1", json=archived)
+    mock.get(f"{API}/token", json=token_payload())
+    mock.get(f"{API}/households/hh1/chores", json=chores)
+    mock.get(f"{API}/households/hh2/chores", json=[])
+    mock.get(f"{API}/households/hh1", json=HOUSEHOLD)
+    mock.get(f"{API}/households/hh1/areas", json=AREAS)

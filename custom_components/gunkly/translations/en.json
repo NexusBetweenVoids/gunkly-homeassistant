@@ -141,13 +141,31 @@
       "message": "The API token does not allow this action: {error}"
     },
     "missing_scope": {
-      "message": "The API token does not have the chores:complete scope, or your role in this household is guest."
+      "message": "The API token does not have the scope this needs (chores:complete to check items or move the due date, chores:write to rename or add), or your role in this household is guest."
     },
     "unknown_item": {
       "message": "The to-do item has no chore id."
     },
     "nothing_to_undo": {
       "message": "This chore has no completion to undo."
+    },
+    "request_invalid": {
+      "message": "Gunkly rejected the request as invalid ({error}). Check the values: a snooze date must be today or later, and a pause date after today."
+    },
+    "request_not_found": {
+      "message": "Gunkly does not know this chore or household any more ({error})."
+    },
+    "request_conflict": {
+      "message": "Gunkly cannot do this right now ({error}). The chore may be archived, or have no further occurrence."
+    },
+    "chore_not_found": {
+      "message": "Chore not found: {chore}. Use the id or the exact name of a chore in this household."
+    },
+    "chore_ambiguous": {
+      "message": "The name {chore} matches {count} chores, use the chore id instead."
+    },
+    "skip_oneoff": {
+      "message": "{chore} is a one-off chore and does not repeat, so it cannot be skipped. Complete it instead."
     }
   },
   "services": {
@@ -157,7 +175,7 @@
       "fields": {
         "chore": {
           "name": "Chore",
-          "description": "Chore id or exact name."
+          "description": "Chore id or exact name (not case-sensitive). A name shared by several chores is refused, use the id then."
         },
         "note": {
           "name": "Note",
@@ -171,21 +189,21 @@
       "fields": {
         "chore": {
           "name": "Chore",
-          "description": "Chore id or exact name."
+          "description": "Chore id or exact name (not case-sensitive). A name shared by several chores is refused, use the id then."
         },
         "until": {
           "name": "Until",
-          "description": "Date the chore should be due, today or later."
+          "description": "Date the chore should be due, today or later (in the household's time zone)."
         }
       }
     },
     "skip_chore": {
       "name": "Skip chore",
-      "description": "Skips the current occurrence of a recurring chore.",
+      "description": "Skips the current occurrence of a recurring chore (one-off chores cannot be skipped).",
       "fields": {
         "chore": {
           "name": "Chore",
-          "description": "Chore id or exact name."
+          "description": "Chore id or exact name (not case-sensitive). A name shared by several chores is refused, use the id then."
         }
       }
     },
@@ -195,7 +213,7 @@
       "fields": {
         "chore": {
           "name": "Chore",
-          "description": "Chore id or exact name."
+          "description": "Chore id or exact name (not case-sensitive). A name shared by several chores is refused, use the id then."
         },
         "until": {
           "name": "Until",
@@ -209,17 +227,17 @@
       "fields": {
         "chore": {
           "name": "Chore",
-          "description": "Chore id or exact name."
+          "description": "Chore id or exact name (not case-sensitive). A name shared by several chores is refused, use the id then."
         }
       }
     },
     "undo_completion": {
       "name": "Undo completion",
-      "description": "Undoes the most recent completion of a chore and restores its previous due date.",
+      "description": "Undoes the most recent completion of a chore and restores its previous due date. A completed one-off chore (archived) can be undone by its exact name too.",
       "fields": {
         "chore": {
           "name": "Chore",
-          "description": "Chore id or exact name (use the id for a completed one-off chore, which is archived)."
+          "description": "Chore id or exact name. For a completed one-off chore, give its name: the most recently completed chore with that name is restored."
         }
       }
     }

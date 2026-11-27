@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import quote
 
 import aiohttp
 from yarl import URL
@@ -16,6 +17,7 @@ STATUS_OVERDUE = "overdue"
 STATUS_TODAY = "today"
 STATUS_THIS_WEEK = "thisWeek"
 STATUS_LATER = "later"
+STATUS_PAUSED = "paused"
 ACTIVE_STATUSES = frozenset({STATUS_OVERDUE, STATUS_TODAY, STATUS_THIS_WEEK, STATUS_LATER})
 
 
@@ -43,11 +45,12 @@ class GunklyRateLimitError(GunklyConnectionError):
 class GunklyApiError(GunklyError):
     """The server rejected a request (4xx other than 401/429)."""
 
-    def __init__(self, status: int, code: str | None) -> None:
-        """Store the HTTP status and Gunkly error code."""
-        super().__init__(f"HTTP {status}: {code or 'unknown'}")
+    def __init__(self, status: int, code: str | None, message: str | None = None) -> None:
+        """Store the HTTP status, Gunkly error code and the server's message, when it sends one."""
+        super().__init__(f"HTTP {status}: {message or code or 'unknown'}")
         self.status = status
         self.code = code
+        self.message = message
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +90,10 @@ class Chore:
     # When the due-day reminder goes off, in the household's time zone (Gunkly 0.5.3+).
     reminder_time: time | None = None
     area_id: str | None = None
+    # Paused chores keep their due date but are not due: until the date, or (None) until resumed.
+    paused_until: date | None = None
+    # Set on archived chores (completed one-offs are archived).
+    archived_at: datetime | None = None
     # Resolved by the coordinator from the household's areas (when areas are on).
     area_name: str | None = None
 
@@ -94,6 +101,11 @@ class Chore:
     def active(self) -> bool:
         """Return True if the chore is due at some point (not paused/archived)."""
         return self.status in ACTIVE_STATUSES
+
+    @property
+    def paused(self) -> bool:
+        """Return True if the chore is paused (indefinitely or until a date)."""
+        return self.status == STATUS_PAUSED
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +159,20 @@ def _parse_time(value: Any) -> time | None:
         return None
 
 
+def _parse_datetime(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _seg(value: str) -> str:
+    """Percent-encode a value so it stays a single path segment (no "/", "?", "#" or "..")."""
+    return quote(value, safe="")
+
+
 def _parse_chore(raw: dict[str, Any]) -> Chore:
     return Chore(
         id=str(raw["id"]),
@@ -160,6 +186,8 @@ def _parse_chore(raw: dict[str, Any]) -> Chore:
         turn_name=str(raw["turnName"]) if raw.get("turnName") else None,
         reminder_time=_parse_time(raw.get("reminderTime")),
         area_id=str(raw["areaId"]) if raw.get("areaId") else None,
+        paused_until=_parse_date(raw.get("pausedUntil")),
+        archived_at=_parse_datetime(raw.get("archivedAt")),
     )
 
 
@@ -201,12 +229,15 @@ class GunklyClient:
                     raise GunklyConnectionError(f"server error {resp.status}")
                 if resp.status >= HTTPStatus.BAD_REQUEST:
                     code: str | None = None
+                    message: str | None = None
                     try:
                         body = await resp.json(content_type=None)
                         code = body["error"]["code"]
-                    except aiohttp.ClientError, ValueError, KeyError, TypeError:
+                        if isinstance(msg := body["error"].get("message"), str) and msg:
+                            message = msg[:200]
+                    except aiohttp.ClientError, ValueError, KeyError, TypeError, AttributeError:
                         pass
-                    raise GunklyApiError(resp.status, code)
+                    raise GunklyApiError(resp.status, code, message)
                 if resp.status == HTTPStatus.NO_CONTENT:
                     return None
                 return await resp.json(content_type=None)
@@ -214,6 +245,13 @@ class GunklyClient:
             raise GunklyConnectionError(str(err)) from err
         except ValueError as err:  # invalid JSON
             raise GunklyConnectionError("invalid JSON in response") from err
+
+    @staticmethod
+    def _hh(household_id: str) -> str:
+        return f"/households/{_seg(household_id)}"
+
+    def _chore(self, household_id: str, chore_id: str) -> str:
+        return f"{self._hh(household_id)}/chores/{_seg(chore_id)}"
 
     async def get_token_info(self) -> TokenInfo:
         """Return the token's scopes and households."""
@@ -236,24 +274,52 @@ class GunklyClient:
 
     async def get_chores(self, household_id: str) -> list[Chore]:
         """Return the active chores of a household."""
-        data = await self._request("GET", f"/households/{household_id}/chores")
+        data = await self._request("GET", f"{self._hh(household_id)}/chores")
         try:
             return [_parse_chore(c) for c in data]
         except (KeyError, TypeError, AttributeError) as err:
             raise GunklyConnectionError("unexpected chores response") from err
 
+    async def get_archived_chores(self, household_id: str) -> list[Chore]:
+        """Return the archived chores (completed one-offs are archived)."""
+        data = await self._request(
+            "GET", f"{self._hh(household_id)}/chores", params={"archived": "1"}
+        )
+        try:
+            return [_parse_chore(c) for c in data]
+        except (KeyError, TypeError, AttributeError) as err:
+            raise GunklyConnectionError("unexpected chores response") from err
+
+    async def rename_chore(self, household_id: str, chore_id: str, name: str) -> None:
+        """Rename a chore: read it, then replace it with only the name changed."""
+        path = self._chore(household_id, chore_id)
+        raw = await self._request("GET", path)
+        try:
+            body: dict[str, Any] = {
+                "name": name,
+                "notes": str(raw.get("notes") or ""),
+                "link": str(raw.get("link") or ""),
+                "kind": str(raw.get("kind") or "recurring"),
+                "schedule": raw["schedule"],
+                "assignees": list(raw.get("assignees") or ()),
+            }
+        except (KeyError, TypeError, AttributeError) as err:
+            raise GunklyConnectionError("unexpected chore response") from err
+        # Omitted: areaId, rotation, advanceOn, reminderPreset, reminderTime (all kept as they are).
+        await self._request("PUT", path, json=body)
+
     async def get_household_timezone(self, household_id: str) -> str | None:
         """Return the household's IANA time zone (reminder times are local to it)."""
-        data = await self._request("GET", f"/households/{household_id}")
+        data = await self._request("GET", self._hh(household_id))
         zone = data.get("timezone") if isinstance(data, dict) else None
         return str(zone) if zone else None
 
     async def get_area_names(self, household_id: str) -> dict[str, str]:
         """Return the household's area names by id; empty while areas are off."""
-        info = await self._request("GET", f"/households/{household_id}")
+        info = await self._request("GET", self._hh(household_id))
         if not isinstance(info, dict) or not info.get("areasEnabled"):
             return {}
-        data = await self._request("GET", f"/households/{household_id}/areas")
+        data = await self._request("GET", f"{self._hh(household_id)}/areas")
         try:
             return {str(a["id"]): str(a.get("name", "")) for a in data}
         except (KeyError, TypeError) as err:
@@ -263,19 +329,19 @@ class GunklyClient:
         """Pause a chore, until a date or indefinitely."""
         await self._request(
             "POST",
-            f"/households/{household_id}/chores/{chore_id}/pause",
+            f"{self._chore(household_id, chore_id)}/pause",
             json={"until": until.isoformat()} if until else {},
         )
 
     async def resume_chore(self, household_id: str, chore_id: str) -> None:
         """Resume a paused chore."""
-        await self._request("POST", f"/households/{household_id}/chores/{chore_id}/resume")
+        await self._request("POST", f"{self._chore(household_id, chore_id)}/resume")
 
     async def undo_last_completion(self, household_id: str, chore_id: str) -> bool:
         """Revert the chore's most recent completion; False when there is none to undo."""
         data = await self._request(
             "GET",
-            f"/households/{household_id}/chores/{chore_id}/completions",
+            f"{self._chore(household_id, chore_id)}/completions",
             params={"limit": "20"},
         )
         try:
@@ -287,7 +353,7 @@ class GunklyClient:
             return False
         await self._request(
             "POST",
-            f"/households/{household_id}/chores/{chore_id}/completions/{latest['id']}/revert",
+            f"{self._chore(household_id, chore_id)}/completions/{_seg(str(latest['id']))}/revert",
         )
         return True
 
@@ -297,7 +363,7 @@ class GunklyClient:
         """Mark a chore done."""
         await self._request(
             "POST",
-            f"/households/{household_id}/chores/{chore_id}/complete",
+            f"{self._chore(household_id, chore_id)}/complete",
             json={"note": note} if note else {},
         )
 
@@ -305,19 +371,19 @@ class GunklyClient:
         """Move the current occurrence to a later date."""
         await self._request(
             "POST",
-            f"/households/{household_id}/chores/{chore_id}/snooze",
+            f"{self._chore(household_id, chore_id)}/snooze",
             json={"until": until.isoformat()},
         )
 
     async def skip_chore(self, household_id: str, chore_id: str) -> None:
         """Skip the current occurrence."""
-        await self._request("POST", f"/households/{household_id}/chores/{chore_id}/skip")
+        await self._request("POST", f"{self._chore(household_id, chore_id)}/skip")
 
     async def create_chore(self, household_id: str, name: str, due: date) -> None:
         """Create a one-off chore due on the given date."""
         await self._request(
             "POST",
-            f"/households/{household_id}/chores",
+            f"{self._hh(household_id)}/chores",
             json={
                 "name": name,
                 "kind": "oneoff",
@@ -331,7 +397,7 @@ class GunklyClient:
         for window_start, window_end in date_windows(start, end):
             data = await self._request(
                 "GET",
-                f"/households/{household_id}/calendar",
+                f"{self._hh(household_id)}/calendar",
                 params={"from": window_start.isoformat(), "to": window_end.isoformat()},
             )
             try:

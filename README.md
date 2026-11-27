@@ -72,15 +72,15 @@ Delete the integration from **Settings, Devices & services**, then (optionally) 
 
 | Entity | Description |
 | --- | --- |
-| `todo.<household>_chores` | Overdue, today and this-week chores (plus later ones if enabled), earliest due first, with due date (and time, for chores with a reminder time; Gunkly 0.5.3 or newer) and notes; the description starts with the chore's area (Gunkly 0.5.1 or newer, when the household uses areas) and, for chores that take turns, whose turn it is (Gunkly 0.5 or newer). Checking an item completes the chore (needs `chores:complete`). Adding an item creates a one-off chore due that day, today by default (needs `chores:write`). Items cannot be deleted or reordered. Without the scopes the list is read-only. |
+| `todo.<household>_chores` | Overdue, today and this-week chores (plus later ones if enabled), earliest due first, with due date (and time, for chores with a reminder time; Gunkly 0.5.3 or newer) and notes; the description starts with the chore's area (Gunkly 0.5.1 or newer, when the household uses areas) and, for chores that take turns, whose turn it is (Gunkly 0.5 or newer). Checking an item completes the chore and changing its due date snoozes it to that date (both need `chores:complete`); renaming an item renames the chore (needs `chores:write`). Adding an item creates a one-off chore due that day, today by default (needs `chores:write`). Items cannot be deleted or reordered. Without the scopes the list is read-only. |
 | `sensor.<household>_overdue_chores` | Number of overdue chores; attribute `chores` lists their names, `turns` maps each chore that takes turns to whose turn it is, `areas` maps each chore with an area to the area name, `reminder_times` maps each chore with a reminder time to it (`HH:MM`, the household's time zone). |
 | `sensor.<household>_chores_due_today` | Number of chores due today; attributes `chores`, `turns`, `areas` and `reminder_times` as above. |
 | `sensor.<household>_next_chore_due` | Date of the earliest due active chore (overdue chores count, paused ones do not); attributes `chore_id`, `chore_name`, `turn_name` (whose turn it is, if the chore takes turns), `area` (its area name or empty), `reminder_time` (`HH:MM` or empty). |
-| `calendar.<household>_chores` | Chore occurrences. A chore with a reminder time (Gunkly 0.5.3 or newer) is a 30-minute event starting at that time in the household's time zone, so a calendar trigger fires when the reminder does; other chores are all-day events. Ranges longer than Gunkly's 62-day limit are fetched in several requests. Events have the chore's area as their location. |
+| `calendar.<household>_chores` | Chore occurrences (paused chores are left out while they are paused). A chore with a reminder time (Gunkly 0.5.3 or newer) is a 30-minute event starting at that time in the household's time zone, so a calendar trigger fires when the reminder does; other chores are all-day events. Ranges longer than Gunkly's 62-day limit are fetched in several requests. Events have the chore's area as their location. |
 
 ## Actions
 
-All actions target the household's to-do entity (or its device or area) and take the chore **id or exact name**.
+All actions target the household's to-do entity (or its device or area) and take the chore **id or exact name** (not case-sensitive). Anything that is not a chore of that household, or a name shared by several chores (use the id then), is refused with an error before any request is made.
 
 | Action | Fields | Needs |
 | --- | --- | --- |
@@ -89,9 +89,9 @@ All actions target the household's to-do entity (or its device or area) and take
 | `gunkly.skip_chore` | `chore` | `chores:complete` |
 | `gunkly.pause_chore` | `chore`, optional `until` (date after today; empty: until resumed) | `chores:complete` |
 | `gunkly.resume_chore` | `chore` | `chores:complete` |
-| `gunkly.undo_completion` | `chore` (for a completed one-off chore, which is archived, use its id) | `chores:complete` |
+| `gunkly.undo_completion` | `chore` (a completed one-off chore, which is archived, can be undone by its exact name too) | `chores:complete` |
 
-`gunkly.undo_completion` undoes the chore's most recent completion and restores its previous due date, like Undo in Gunkly. A paused chore is not on the to-do list but can still be named in actions.
+`gunkly.undo_completion` undoes the chore's most recent completion and restores its previous due date, like Undo in Gunkly; for a completed one-off chore, the most recently completed one with that name is restored. One-off chores cannot be skipped. A paused chore is not on the to-do list but can still be named in actions.
 
 ## Events
 

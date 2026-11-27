@@ -77,12 +77,14 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
             # A token acts with its owner's role: guests can only read.
             self._attr_supported_features = features
             return
-        if SCOPE_COMPLETE in scopes:
-            features |= TodoListEntityFeature.UPDATE_TODO_ITEM
-        if SCOPE_WRITE in scopes:
+        # Checking an item and moving its due date (snooze) need chores:complete, renaming and
+        # creating items need chores:write.
+        if SCOPE_COMPLETE in scopes or SCOPE_WRITE in scopes:
             features |= (
-                TodoListEntityFeature.CREATE_TODO_ITEM | TodoListEntityFeature.SET_DUE_DATE_ON_ITEM
+                TodoListEntityFeature.UPDATE_TODO_ITEM | TodoListEntityFeature.SET_DUE_DATE_ON_ITEM
             )
+        if SCOPE_WRITE in scopes:
+            features |= TodoListEntityFeature.CREATE_TODO_ITEM
         self._attr_supported_features = features
 
     async def async_added_to_hass(self) -> None:
@@ -124,12 +126,34 @@ class GunklyTodoList(GunklyEntity, TodoListEntity):
         ]
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
-        """Checking an item completes the chore."""
-        if item.status != TodoItemStatus.COMPLETED:
-            return
+        """Checking an item completes the chore; the name and due date can be changed."""
         if item.uid is None:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="unknown_item")
-        await self.async_complete_chore(item.uid)
+        chore = self.coordinator.resolve_chore(self.household.id, item.uid)
+        scopes = self.coordinator.token.scopes
+        client = self.coordinator.client
+        rename = item.summary is not None and item.summary.strip() not in ("", chore.name)
+        due = item.due
+        if isinstance(due, datetime):
+            # The list shows due times in the household's zone, so compare the day there.
+            zone = self.coordinator.timezones.get(self.household.id)
+            due = (due.astimezone(zone) if zone and due.tzinfo else due).date()
+        reschedule = due is not None and due != chore.due_date
+        if (rename and SCOPE_WRITE not in scopes) or (
+            (reschedule or item.status == TodoItemStatus.COMPLETED) and SCOPE_COMPLETE not in scopes
+        ):
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="missing_scope")
+
+        async def update() -> None:
+            if rename and item.summary:
+                await client.rename_chore(self.household.id, chore.id, item.summary.strip())
+            if reschedule and due is not None:
+                await client.snooze_chore(self.household.id, chore.id, due)
+            if item.status == TodoItemStatus.COMPLETED:
+                await client.complete_chore(self.household.id, chore.id)
+
+        if rename or reschedule or item.status == TodoItemStatus.COMPLETED:
+            await self.api_call(update())
 
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Create a one-off chore, due today unless a date is given."""

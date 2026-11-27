@@ -105,7 +105,7 @@ class GunklyConfigFlow(ConfigFlow, domain=DOMAIN):
                     await self.async_set_unique_id(_unique_id(url, info))
                     self._abort_if_unique_id_configured()
                     return self.async_create_entry(
-                        title=f"Gunkly ({info.user_name or info.name})",
+                        title=f"Gunkly ({info.user_name or info.name} @ {URL(url).host})",
                         data={CONF_URL: url, CONF_TOKEN: user_input[CONF_TOKEN].strip()},
                     )
         return self.async_show_form(

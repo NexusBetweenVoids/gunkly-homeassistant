@@ -121,3 +121,37 @@ async def test_no_reminder_times_no_household_request(
     await setup()
     assert not [c for c in mock_api.mock_calls if str(c[1]).endswith("/households/hh1")]
     assert hass.states.get(ENTITY).attributes["all_day"] is True
+
+
+async def test_paused_chores_are_left_out(
+    hass: HomeAssistant, setup, mock_api: AiohttpClientMocker
+) -> None:
+    """Paused chores are not on the calendar while paused (until the date, or until resumed)."""
+    from .conftest import chore, set_chores
+
+    set_chores(
+        mock_api,
+        [
+            *CHORES,
+            chore("c6", "Until later", "paused", "2026-11-23", pausedUntil="2026-12-10T00:00:00Z"),
+        ],
+    )
+    await setup()
+    mock_api.get(
+        f"{API}/households/hh1/calendar",
+        json={
+            "items": [
+                {"choreId": "c1", "name": "Take out bins", "dates": ["2026-11-27"]},
+                {"choreId": "c5", "name": "Paused thing", "dates": ["2026-11-27", "2026-12-04"]},
+                {"choreId": "c6", "name": "Until later", "dates": ["2026-12-04", "2026-12-11"]},
+            ]
+        },
+    )
+    cal = hass.data["calendar"].get_entity(ENTITY)
+    events = await cal.async_get_events(
+        hass, dt_util.as_utc(datetime(2026, 11, 20)), dt_util.as_utc(datetime(2026, 12, 20))
+    )
+    assert [(e.summary, e.start) for e in events] == [
+        ("Take out bins", date(2026, 11, 27)),
+        ("Until later", date(2026, 12, 11)),
+    ]
